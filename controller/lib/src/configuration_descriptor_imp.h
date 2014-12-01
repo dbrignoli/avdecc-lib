@@ -65,7 +65,6 @@ namespace avdecc_lib
         std::map<uint16_t, DITEM> m_all_desc; // Store all descriptors in a map of vectors
 
         size_t desc_count(uint16_t type);
-        descriptor_base_imp *lookup_desc(uint16_t desc_type, size_t index);
         void update_desc_database(descriptor_base_imp *desc);
 
 	public:
@@ -128,7 +127,9 @@ namespace avdecc_lib
         uint16_t STDCALL get_desc_type_from_config_by_index(int desc_index);
         uint16_t STDCALL get_desc_count_from_config_by_index(int desc_index);
         bool STDCALL are_desc_type_and_index_in_config(int desc_type, int desc_count_index);
-        
+
+        descriptor_base_imp *lookup_desc_imp(uint16_t desc_type, size_t index);
+        descriptor_base * STDCALL lookup_desc(uint16_t desc_type, size_t index);
         entity_descriptor * STDCALL get_entity_descriptor_by_index(size_t entity_desc_index);
         audio_unit_descriptor * STDCALL get_audio_unit_desc_by_index(size_t audio_unit_desc_index);
         stream_input_descriptor * STDCALL get_stream_input_desc_by_index(size_t stream_input_desc_index);

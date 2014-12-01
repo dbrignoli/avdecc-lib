@@ -78,6 +78,7 @@ namespace avdecc_lib
         uint64_t STDCALL acquire_entity_owner_entity_id();
         uint32_t STDCALL lock_entity_flags();
         uint64_t STDCALL lock_entity_locked_entity_id();
+        const struct avdecc_lib_name_string64 * STDCALL get_name(uint16_t name_index);
 
         int STDCALL send_acquire_entity_cmd(void *notification_id, uint32_t acquire_entity_flag);
         int proc_acquire_entity_resp(void *&notification_id, const uint8_t *frame, size_t frame_len, int &status);

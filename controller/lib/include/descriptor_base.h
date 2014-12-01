@@ -36,6 +36,11 @@ namespace avdecc_lib
 {
     class descriptor_field;
 
+    struct avdecc_lib_name_string64
+    {
+        uint8_t value[64];
+    };
+
     class descriptor_base
     {
     public:
@@ -58,6 +63,17 @@ namespace avdecc_lib
         * \return The indicated field in the descriptor.
         */
         AVDECC_CONTROLLER_LIB32_API virtual descriptor_field * STDCALL field(size_t index) const = 0;
+
+        /**
+         * Get the descriptor object name at index name_index.
+         *
+         * Return a pointer to a zero padded 64 octects array or NULL if
+         * name_index is invalid.
+         *
+         * The array is not zero terminated if all 64 octets are used.
+         * The caller must not modify the memory pointed to by the returned pointer.
+         */
+        AVDECC_CONTROLLER_LIB32_API virtual const struct avdecc_lib_name_string64 * STDCALL get_name(uint16_t name_index) = 0;
 
         /**
          * \return The name of the descriptor object. This may be user set through the use of a SET_NAME command.
@@ -140,7 +156,7 @@ namespace avdecc_lib
          * \param new_name The new name to be set. The name does not contain a trailing NULL, but if the name is less than 64 bytes
          *		   in length, then it is zero padded.
          */
-        AVDECC_CONTROLLER_LIB32_API virtual int STDCALL send_set_name_cmd(void *notification_id, uint16_t name_index, uint16_t config_index, char * new_name) = 0;
+        AVDECC_CONTROLLER_LIB32_API virtual int STDCALL send_set_name_cmd(void *notification_id, uint16_t name_index, uint16_t config_index, const struct avdecc_lib_name_string64 * new_name) = 0;
 
         /**
          * Send a GET_NAME command to get the value of a name field within a descriptor. For descriptors with multiple names, this

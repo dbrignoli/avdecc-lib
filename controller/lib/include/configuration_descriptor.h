@@ -183,6 +183,11 @@ namespace avdecc_lib
         AVDECC_CONTROLLER_LIB32_API virtual size_t STDCALL external_port_output_desc_count() = 0;
 
         /**
+         * \return A descriptor by type and index.
+         */
+        AVDECC_CONTROLLER_LIB32_API virtual descriptor_base * STDCALL lookup_desc(uint16_t desc_type, size_t index) = 0;
+
+        /**
          * \return The corresponding ENTITY descriptor by index.
          */
         AVDECC_CONTROLLER_LIB32_API virtual entity_descriptor * STDCALL get_entity_descriptor_by_index(size_t audio_unit_desc_index) = 0;

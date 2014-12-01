@@ -124,6 +124,22 @@ namespace avdecc_lib
         return jdksavdecc_uint64_get(&entity_desc.association_id, 0);
     }
 
+    const struct avdecc_lib_name_string64 * STDCALL entity_descriptor_imp::get_name(uint16_t name_index)
+    {
+        if(name_index == 0)
+        {
+            return (const struct avdecc_lib_name_string64 *)&entity_desc.entity_name;
+        }
+        else if(name_index == 1)
+        {
+            return (const struct avdecc_lib_name_string64 *)&entity_desc.group_name.value;
+        }
+        else
+        {
+            return NULL;
+        }
+    }
+
     uint8_t * STDCALL entity_descriptor_imp::entity_name()
     {
         return entity_desc.entity_name.value;

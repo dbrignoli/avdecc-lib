@@ -423,6 +423,18 @@ void cmd_line::cmd_line_commands_init()
     cli_command *get_cmd = new cli_command();
     commands.add_sub_command("get", get_cmd);
 
+    // get name
+    cli_command *get_name_cmd = new cli_command();
+    get_cmd->add_sub_command("name", get_name_cmd);
+
+    cli_command_format *get_name_state_fmt = new cli_command_format(
+        "Send a GET_NAME command to fetch the value of a name field within a descriptor.",
+        &cmd_line::cmd_get_name);
+    get_name_state_fmt->add_argument(new cli_argument_string(this, "d_t", "the descriptor type"));
+    get_name_state_fmt->add_argument(new cli_argument_int(this, "d_i", "the descriptor index"));
+    get_name_state_fmt->add_argument(new cli_argument_int(this, "n_i", "the name index"));
+    get_name_cmd->add_format(get_name_state_fmt);
+
     // get rx
     cli_command *get_rx_cmd = new cli_command();
     get_cmd->add_sub_command("rx", get_rx_cmd);
@@ -588,6 +600,19 @@ void cmd_line::cmd_line_commands_init()
     // set
     cli_command *set_cmd = new cli_command();
     commands.add_sub_command("set", set_cmd);
+
+    // set name
+    cli_command *set_name_cmd = new cli_command();
+    set_cmd->add_sub_command("name", set_name_cmd);
+
+    cli_command_format *set_name_state_fmt = new cli_command_format(
+        "Send a SET_NAME command to change the value of a name field within a descriptor.",
+        &cmd_line::cmd_set_name);
+    set_name_state_fmt->add_argument(new cli_argument_string(this, "d_t", "the descriptor type"));
+    set_name_state_fmt->add_argument(new cli_argument_int(this, "d_i", "the descriptor index"));
+    set_name_state_fmt->add_argument(new cli_argument_int(this, "n_i", "the name index"));
+    set_name_state_fmt->add_argument(new cli_argument_string(this, "o_n", "the new name"));
+    set_name_cmd->add_format(set_name_state_fmt);
 
     // set stream_format
     cli_command *set_stream_format_cmd = new cli_command();
@@ -3062,17 +3087,138 @@ int cmd_line::cmd_get_stream_info(int total_matched, std::vector<cli_argument*> 
     return 0;
 }
 
-int cmd_line::cmd_set_name(std::string desc_name, uint16_t desc_index, uint16_t name_index, std::string new_name)
+int cmd_line::cmd_display_desc_name(avdecc_lib::descriptor_base *desc, uint16_t name_index)
 {
-
-    atomic_cout << "Need to implement cmd_set_name" << std::endl;
+        uint8_t name[sizeof(struct avdecc_lib::avdecc_lib_name_string64)+1] = {0};
+        const struct avdecc_lib::avdecc_lib_name_string64 *name64 =
+            desc->get_name(name_index);
+        if(!name64)
+        {
+            atomic_cout << "cmd_get_name get_name() failed" << std::endl;
+        }
+        else
+        {
+            /* name is guaranteed to be zero terminated because because its
+             * size is MAX_NAME_OCTECT_SIZE+1 octets and it's set to zero.
+             */
+            memcpy(name, name64, sizeof(name)-1);
+            atomic_cout << "Descriptor " <<
+                avdecc_lib::utility::aem_desc_value_to_name(desc->descriptor_type()) <<
+                "." << desc->descriptor_index() <<
+                " name at index " << name_index << ": " <<
+                std::dec << name << std::endl;
+        }
 
     return 0;
 }
 
-int cmd_line::cmd_get_name(std::string desc_name, uint16_t desc_index, uint16_t name_index)
+int cmd_line::cmd_set_name(int total_matched, std::vector<cli_argument*> args)
 {
-    atomic_cout << "Need to implement cmd_get_name" << std::endl;
+    int status = avdecc_lib::AEM_STATUS_NOT_IMPLEMENTED;
+    std::string desc_name = args[0]->get_value_str();
+    uint16_t desc_index = args[1]->get_value_int();
+    uint16_t name_index = args[2]->get_value_int();
+    std::string new_name = args[3]->get_value_str();
+
+    uint16_t desc_type =
+        avdecc_lib::utility::aem_desc_name_to_value(desc_name.c_str());
+
+    avdecc_lib::end_station *end_station;
+    avdecc_lib::entity_descriptor *entity;
+    avdecc_lib::configuration_descriptor *configuration;
+    avdecc_lib::descriptor_base *desc_base = NULL;
+
+    if (get_current_end_station_entity_and_descriptor(&end_station, &entity,
+            &configuration))
+        return 0;
+
+    if(desc_type == avdecc_lib::AEM_DESC_ENTITY)
+    {
+        desc_base = entity;
+    }
+    else
+    {
+        desc_base = configuration->lookup_desc(desc_type, desc_index);
+    }
+
+    if(!desc_base)
+    {
+        atomic_cout <<  "cmd_set_name cannot lookup descriptor" << std::endl;
+        return 0;
+    }
+
+    struct avdecc_lib::avdecc_lib_name_string64 new_name64 = {{0}};
+    strncpy((char *)new_name64.value, new_name.c_str(),
+        sizeof(new_name64.value));
+    intptr_t cmd_notification_id = get_next_notification_id();
+    sys->set_wait_for_next_cmd((void *)cmd_notification_id);
+    desc_base->send_set_name_cmd((void *)cmd_notification_id, name_index, 0,
+        &new_name64);
+    status = sys->get_last_resp_status();
+
+    if(status == avdecc_lib::AEM_STATUS_SUCCESS)
+    {
+        cmd_display_desc_name(desc_base, name_index);
+    }
+    else
+    {
+        atomic_cout << "cmd_set_name failed with AEM status: " <<
+            avdecc_lib::utility::aem_cmd_status_value_to_name(status) <<
+            std::endl;
+    }
+
+    return 0;
+}
+
+int cmd_line::cmd_get_name(int total_matched, std::vector<cli_argument*> args)
+{
+    int status = avdecc_lib::AEM_STATUS_NOT_IMPLEMENTED;
+    std::string desc_name = args[0]->get_value_str();
+    uint16_t desc_index = args[1]->get_value_int();
+    uint16_t name_index = args[2]->get_value_int();
+
+    uint16_t desc_type =
+        avdecc_lib::utility::aem_desc_name_to_value(desc_name.c_str());
+
+    avdecc_lib::end_station *end_station;
+    avdecc_lib::entity_descriptor *entity;
+    avdecc_lib::configuration_descriptor *configuration;
+    avdecc_lib::descriptor_base *desc_base = NULL;
+
+    if (get_current_end_station_entity_and_descriptor(&end_station, &entity,
+            &configuration))
+        return 0;
+
+    if(desc_type == avdecc_lib::AEM_DESC_ENTITY)
+    {
+        desc_base = dynamic_cast<avdecc_lib::descriptor_base *>(entity);
+    }
+    else
+    {
+        desc_base = configuration->lookup_desc(desc_type, desc_index);
+    }
+
+    if(!desc_base)
+    {
+        atomic_cout <<  "cmd_get_name cannot lookup descriptor" << std::endl;
+        return 0;
+    }
+
+    intptr_t cmd_notification_id = get_next_notification_id();
+    sys->set_wait_for_next_cmd((void *)cmd_notification_id);
+    desc_base->send_get_name_cmd((void *)cmd_notification_id, name_index, 0);
+    status = sys->get_last_resp_status();
+
+    if(status == avdecc_lib::AEM_STATUS_SUCCESS)
+    {
+        cmd_display_desc_name(desc_base, name_index);
+    }
+    else
+    {
+        atomic_cout << "cmd_get_name failed with AEM status: " <<
+            avdecc_lib::utility::aem_cmd_status_value_to_name(status) <<
+            std::endl;
+    }
 
     return 0;
 }
